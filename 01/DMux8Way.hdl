@@ -19,4 +19,27 @@ CHIP DMux8Way {
 
     PARTS:
     //// Replace this comment with your code.
+    Not(in=sel[1] , out=notsel1 );
+    Not(in=sel[2] , out=notsel2 );
+    DMux(in=in , sel=sel[0] , a=outa , b=outb );
+    DMux(in=in , sel=sel[0] , a=outc , b=outd );
+    DMux(in=in , sel=sel[0] , a=oute , b=outf );
+    DMux(in=in , sel=sel[0] , a=outg , b=outh );
+    And(a=outa , b=notsel1 , out=outaa );
+    And(a=outb , b=notsel1 , out=outbb );
+    And(a=outc , b=sel[1] , out=outcc );
+    And(a=outd , b=sel[1] , out=outdd );
+    And(a=oute , b=notsel1 , out=outee );
+    And(a=outf , b=notsel1 , out=outff );
+    And(a=outg , b=sel[1] , out=outgg );
+    And(a=outh , b=sel[1] , out=outhh );
+
+    And(a=outaa , b=notsel2 , out=a );
+    And(a=outbb , b=notsel2 , out=b );
+    And(a=outcc , b=notsel2 , out=c );
+    And(a=outdd , b=notsel2 , out=d );
+    And(a=outee , b=sel[2] , out=e );
+    And(a=outff , b=sel[2] , out=f );
+    And(a=outgg , b=sel[2] , out=g );
+    And(a=outhh , b=sel[2] , out=h );
 }
