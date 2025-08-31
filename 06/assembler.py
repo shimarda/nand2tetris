@@ -12,6 +12,7 @@ class Parser:
     def __init__(self, file_path: str):
         self.file_path = file_path
         self.fp = open(file_path, "r")
+        self.binry = b'0000000000000000'
         
 
     # 入力にまだ行があるのか
@@ -68,14 +69,80 @@ class Parser:
         return re.search(r'*=*;(*)', line).group(1)
 
 class Code:
+    def __init__(self, parser_instance=None):
+        self.parser = parser_instance
     # destニーモニックのバイナリコード
-    def dest(self):
-        
-        return None
-    
+    def dest(self, dest):
+        if "M" in dest:
+            if self.parser:
+                self.parser.binary[0] = b'1'
+        if "D" in dest:
+            if self.parser:
+                self.parser.binary[1] = b'1'
+        if "A" in dest:
+            if self.parser:
+                self.parser.binary[2] = b'1'
+        return self.parser.binary[0:2]
     # compニーモニックのバイナリコード
-    def comp(self):
-        return None
+    def comp(self, comp: str):
+        if self.parser.binary[12]:
+            if "M" == comp:
+                self.parser.binary[6:11] = b'110000'
+            elif "!M" == comp:
+                self.parser.binary[6:11] = b'110001'
+            elif "-M" == comp:
+                self.parser.binary[6:11] = b'110011'
+            elif "M+1" == comp:
+                self.parser.binary[6:11] = b'110111'
+            elif "M-1" == comp:
+                self.parser.binary[6:11] = b'110010'
+            elif "D+M" == comp:
+                self.parser.binary[6:11] = b'000010'
+            elif "D-M" == comp:
+                self.parser.binary[6:11] = b'010011'
+            elif "M-D" == comp:
+                self.parser.binary[6:11] = b'000111'
+            elif "D&M" == comp:
+                self.parser.binary[6:11] = b'000000'
+            elif "D|M" == comp:
+                self.parser.binary[6:11] = b'010101'
+        else:
+            if "0" == comp:
+                self.parser.binary[6:11] = b'101010'
+            elif "1" == comp:
+                self.parser.binary[6:11] = b'111111'
+            elif "-1" == comp:
+                self.parser.binary[6:11] = b'111010'
+            elif "D" == comp:
+                self.parser.binary[6:11] = b'001100'
+            elif "A" == comp:
+                self.parser.binary[6:11] = b'110000'
+            elif "!D" == comp:
+                self.parser.binary[6:11] = b'001101'
+            elif "!A" == comp:
+                self.parser.binary[6:11] = b'110001'
+            elif "-D" == comp:
+                self.parser.binary[6:11] = b'001111'
+            elif "-A" == comp:
+                self.parser.binary[6:11] = b'110011'
+            elif "D+1" == comp:
+                self.parser.binary[6:11] = b'011111'
+            elif "A+1" == comp:
+                self.parser.binary[6:11] = b'110111'
+            elif "D-1" == comp:
+                self.parser.binary[6:11] = b'001110'
+            elif "A-1" == comp:
+                self.parser.binary[6:11] = b'110010'
+            elif "D+A" == comp:
+                self.parser.binary[6:11] = b'000010'
+            elif "D-A" == comp:
+                self.parser.binary[6:11] = b'010011'
+            elif "A-D" == comp:
+                self.parser.binary[6:11] = b'000111'
+            elif "D&A" == comp:
+                self.parser.binary[6:11] = b'000000'
+            elif "D|A" == comp:
+                self.parser.binary[6:11] = b'010101'
 
     # jumpニーモニックのバイナリコード
     def jump(selg):
