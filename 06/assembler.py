@@ -1,6 +1,13 @@
 import re
+import sys
+
+
+A_INSTRUCTION: str = "A_INSTRUCTION"
+C_INSTRUCTION: str = "C_INSTRUCTION"
+L_INSTRUCTION: str = "L_INSTRUCTION"
 
 class Parser:
+
     # 入力ファイル/データストリームを開き解析の準備をする
     def __init__(self, file_path: str):
         self.file_path = file_path
@@ -16,32 +23,54 @@ class Parser:
 
     # 空白、コメントをスキップ
     def advance(self):
-        
-        return None
+        while True:
+            line = self.fp.readline()
+            stripped = line.strip()
+            if stripped == '' or stripped.startswith('//'):
+                continue
+            return line
 
     # 命令のタイプを示す
     def instructionType(self):
-        return None
+        line = self.fp.readline()
+        if line.startswith('@'):
+            self.instructionType = A_INSTRUCTION
+            return A_INSTRUCTION
+        elif re.fullmatch(r'\(*\)', line):
+            self.instructionType = L_INSTRUCTION
+            return L_INSTRUCTION
+        else:
+            self.instructionType = C_INSTRUCTION
+            return C_INSTRUCTION
 
     # 命令が(〇〇)の場合シンボル〇〇を返す
     def symbol(self):
-        return None
-
+        line = self.fp.readline()
+        if self.instructionType == L_INSTRUCTION:
+            m = re.search(r'\((*)\)', line)
+            return m.group(1)
+        elif self.instructionType == A_INSTRUCTION:
+            m = re.search(r'@(*)', line)
+            return m.group(1)
     # 現在のC命令のdest部分を返す
     def dest(self):
-        return None
+        line = self.fp.readline()
+        return re.search(r'(*)=*', line).group(1)
 
     # 現在のC命令のcomp部分を返す
     def comp(self):
-        return None
+        line = self.fp.readline()
+        return re.search(r'*=();*', line).group(1)
 
     # 現在のC命令のjump部分を返す
     def jump(self):
-        return None
+        line = self.fp.readline()
+        return re.search(r'*=*;(*)', line).group(1)
 
 class Code:
     # destニーモニックのバイナリコード
     def dest(self):
+        
         return None
     
     # compニーモニックのバイナリコード
@@ -74,8 +103,29 @@ class SymbolTable:
 
 
 
+if __name__ == "__main__":
+    
+    args = sys.argv
+    if 1 != len(args):
+        print("Argument is invalid")
+    else:
+        parser = Parser(args[0])
 
+        if parser.hasMoreLines():
+            # 次に行あり
+            parser.advance()
+            
+            instr_type = parser.instructionType()
+            if instr_type == A_INSTRUCTION or instr_type == L_INSTRUCTION:
+                symbol = parser.symbol()
+            else:
+                dest = parser.dest()
+                comp = parser.comp()
+                jump = parser.jump()
+        else:
+            parser.fp.close()
 
+    
 
 
 
