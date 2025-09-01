@@ -12,8 +12,9 @@ class Parser:
     def __init__(self, file_path: str):
         self.file_path = file_path
         self.fp = open(file_path, "r")
-        self.binry = b'0000000000000000'
-        
+        self.binary = ['0'] * 16
+        self.current_line = ""
+        self.instruction_type = None        
 
     # 入力にまだ行があるのか
     def hasMoreLines(self) -> bool:
@@ -29,143 +30,131 @@ class Parser:
             stripped = line.strip()
             if stripped == '' or stripped.startswith('//'):
                 continue
-            return line
+            self.current_line = stripped
+            self.instruction_type = None
+            return stripped
 
     # 命令のタイプを示す
     def instructionType(self):
+        if self.instruction_type:
+            return self.instruction_type
+        
         line = self.fp.readline()
         if line.startswith('@'):
-            self.instructionType = A_INSTRUCTION
+            self.instruction_type = A_INSTRUCTION
             return A_INSTRUCTION
         elif re.fullmatch(r'\(*\)', line):
-            self.instructionType = L_INSTRUCTION
+            self.instruction_type = L_INSTRUCTION
             return L_INSTRUCTION
         else:
-            self.instructionType = C_INSTRUCTION
+            self.instruction_type = C_INSTRUCTION
             return C_INSTRUCTION
 
     # 命令が(〇〇)の場合シンボル〇〇を返す
     def symbol(self):
-        line = self.fp.readline()
-        if self.instructionType == L_INSTRUCTION:
+        line = self.current_line
+        instr_type = self.instructionType()
+        if instr_type == L_INSTRUCTION:
             m = re.search(r'\((*)\)', line)
             return m.group(1)
-        elif self.instructionType == A_INSTRUCTION:
+        elif instr_type == A_INSTRUCTION:
             m = re.search(r'@(*)', line)
             return m.group(1)
+        return None
+
     # 現在のC命令のdest部分を返す
     def dest(self):
-        line = self.fp.readline()
-        return re.search(r'(*)=*', line).group(1)
+        line = self.current_line
+        if '=' in line:
+            return line.split('=')[0].strip()
+        return None
 
     # 現在のC命令のcomp部分を返す
     def comp(self):
-        line = self.fp.readline()
-        return re.search(r'*=();*', line).group(1)
-
+        line = self.current_line
+        if '=' in line:
+            line = line.split('=')[1]
+        if ';' in line:
+            line = line.split(';')[0]
+        return line.strip()
+    
     # 現在のC命令のjump部分を返す
     def jump(self):
-        line = self.fp.readline()
-        return re.search(r'*=*;(*)', line).group(1)
+        line = self.current_line
+        return line.split(';')[1].strip()
+    
+    def close(self):
+        self.fp.close()
 
 class Code:
-    def __init__(self, parser_instance=None):
-        self.parser = parser_instance
+    def __init__(self):
+        pass
+
     # destニーモニックのバイナリコード
     def dest(self, dest):
+        res = ['0', '0', '0']
         if "M" in dest:
-            if self.parser:
-                self.parser.binary[0] = b'1'
+            res[2] = '1'
         if "D" in dest:
-            if self.parser:
-                self.parser.binary[1] = b'1'
+            res[1] = '1'
         if "A" in dest:
-            if self.parser:
-                self.parser.binary[2] = b'1'
-        return self.parser.binary[0:2]
+            res[0] = '1'
+        return ''.join(res)
+    
     # compニーモニックのバイナリコード
     def comp(self, comp: str):
-        if self.parser.binary[12]:
-            if "M" == comp:
-                self.parser.binary[6:11] = b'110000'
-            elif "!M" == comp:
-                self.parser.binary[6:11] = b'110001'
-            elif "-M" == comp:
-                self.parser.binary[6:11] = b'110011'
-            elif "M+1" == comp:
-                self.parser.binary[6:11] = b'110111'
-            elif "M-1" == comp:
-                self.parser.binary[6:11] = b'110010'
-            elif "D+M" == comp:
-                self.parser.binary[6:11] = b'000010'
-            elif "D-M" == comp:
-                self.parser.binary[6:11] = b'010011'
-            elif "M-D" == comp:
-                self.parser.binary[6:11] = b'000111'
-            elif "D&M" == comp:
-                self.parser.binary[6:11] = b'000000'
-            elif "D|M" == comp:
-                self.parser.binary[6:11] = b'010101'
-        else:
-            if "0" == comp:
-                self.parser.binary[6:11] = b'101010'
-            elif "1" == comp:
-                self.parser.binary[6:11] = b'111111'
-            elif "-1" == comp:
-                self.parser.binary[6:11] = b'111010'
-            elif "D" == comp:
-                self.parser.binary[6:11] = b'001100'
-            elif "A" == comp:
-                self.parser.binary[6:11] = b'110000'
-            elif "!D" == comp:
-                self.parser.binary[6:11] = b'001101'
-            elif "!A" == comp:
-                self.parser.binary[6:11] = b'110001'
-            elif "-D" == comp:
-                self.parser.binary[6:11] = b'001111'
-            elif "-A" == comp:
-                self.parser.binary[6:11] = b'110011'
-            elif "D+1" == comp:
-                self.parser.binary[6:11] = b'011111'
-            elif "A+1" == comp:
-                self.parser.binary[6:11] = b'110111'
-            elif "D-1" == comp:
-                self.parser.binary[6:11] = b'001110'
-            elif "A-1" == comp:
-                self.parser.binary[6:11] = b'110010'
-            elif "D+A" == comp:
-                self.parser.binary[6:11] = b'000010'
-            elif "D-A" == comp:
-                self.parser.binary[6:11] = b'010011'
-            elif "A-D" == comp:
-                self.parser.binary[6:11] = b'000111'
-            elif "D&A" == comp:
-                self.parser.binary[6:11] = b'000000'
-            elif "D|A" == comp:
-                self.parser.binary[6:11] = b'010101'
+        comp_table = {
+            # a=0 の場合
+            "0":   "0101010",
+            "1":   "0111111", 
+            "-1":  "0111010",
+            "D":   "0001100",
+            "A":   "0110000",
+            "!D":  "0001101",
+            "!A":  "0110001", 
+            "-D":  "0001111",
+            "-A":  "0110011",
+            "D+1": "0011111",
+            "A+1": "0110111",
+            "D-1": "0001110",
+            "A-1": "0110010", 
+            "D+A": "0000010",
+            "D-A": "0010011",
+            "A-D": "0000111",
+            "D&A": "0000000",
+            "D|A": "0010101",
+            # a=1 の場合 (AをMに置換)
+            "M":   "1110000",
+            "!M":  "1110001",
+            "-M":  "1110011", 
+            "M+1": "1110111",
+            "M-1": "1110010",
+            "D+M": "1000010",
+            "D-M": "1010011",
+            "M-D": "1000111", 
+            "D&M": "1000000",
+            "D|M": "1010101"
+        }
+        return comp_table.get(comp, "0000000")
 
     # jumpニーモニックのバイナリコード
     def jump(self, jump: str):
-        if "JGT" == jump:
-            self.parser.binary[0:2] = b'001'
-        elif "JEQ" == jump:
-            self.parser.binary[0:2] = b'010'
-        elif "JGE" == jump:
-            self.parser.binary[0:2] = b'011'
-        elif "JLT" == jump:
-            self.parser.binary[0:2] = b'100'
-        elif "JNE" == jump:
-            self.parser.binary[0:2] = b'101'
-        elif "JLE" == jump:
-            self.parser.binary[0:2] = b'111'
-        elif "JMP" == jump:
-            self.parser.binary[0:2] = b'111'
-        else:
-            self.parser.binary[0:2] = b'000'
-
+        jump_table = {
+            None:  "000",
+            "JGT": "001",
+            "JEQ": "010", 
+            "JGE": "011",
+            "JLT": "100",
+            "JNE": "101",
+            "JLE": "110",
+            "JMP": "111"
+        }
+        return jump_table.get(jump, "000")
+    
 class SymbolTable:
     # 新しい空のシンボルテーブルを作成
-    def init(self):
+    def __init__(self):
+        
         return None
 
     # <symbot, address>をテーブルに追加
@@ -203,6 +192,7 @@ if __name__ == "__main__":
                 dest = parser.dest()
                 comp = parser.comp()
                 jump = parser.jump()
+
         else:
             parser.fp.close()
 
