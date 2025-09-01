@@ -145,9 +145,23 @@ class Code:
                 self.parser.binary[6:11] = b'010101'
 
     # jumpニーモニックのバイナリコード
-    def jump(selg):
-        return None
-
+    def jump(self, jump: str):
+        if "JGT" == jump:
+            self.parser.binary[0:2] = b'001'
+        elif "JEQ" == jump:
+            self.parser.binary[0:2] = b'010'
+        elif "JGE" == jump:
+            self.parser.binary[0:2] = b'011'
+        elif "JLT" == jump:
+            self.parser.binary[0:2] = b'100'
+        elif "JNE" == jump:
+            self.parser.binary[0:2] = b'101'
+        elif "JLE" == jump:
+            self.parser.binary[0:2] = b'111'
+        elif "JMP" == jump:
+            self.parser.binary[0:2] = b'111'
+        else:
+            self.parser.binary[0:2] = b'000'
 
 class SymbolTable:
     # 新しい空のシンボルテーブルを作成
