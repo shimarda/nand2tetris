@@ -1,4 +1,4 @@
-    
+import os
 
 C_ARITHMETIC = 0
 C_PUSH = 1
@@ -15,7 +15,7 @@ class Parser:
 
     def __init__(self, file_path: str):
         self.file_path = file_path
-        self.fp = open(file_path, "rw")
+        self.fp = open(file_path, "r")
         self.cur_line = ""
         self.cmd_type = None
         
@@ -33,7 +33,7 @@ class Parser:
     def advance(self):
         self.cur_line = self.fp.readline()
 
-    # 現在のコマンドの朱里の定数を返す
+    # 現在のコマンドの種類の定数を返す
     def commandType(self):
         cmd = self.cur_line.strip().split()[0]
 
@@ -43,11 +43,11 @@ class Parser:
             self.cmd_type = C_PUSH
         elif cmd == "pop":
             self.cmd_type = C_POP
-        elif cmd == "if":
+        elif cmd == "if-goto":
             self.cmd_type = C_IF
         elif cmd == "goto":
             self.cmd_type = C_GOTO
-        elif cmd == "fuction":
+        elif cmd == "function":
             self.cmd_type = C_FUNCTION
         elif cmd == "return":
             self.cmd_type = C_RETURN
@@ -58,8 +58,11 @@ class Parser:
     
     # 現在のコマンドの第一引数を返す
     def arg1(self) -> str:
-        line = self.cur_line
-        return str(line.strip().split()[1])
+        if self.cmd_type != C_ARITHMETIC:
+            line = self.cur_line
+            return str(line.strip().split()[1])
+        else:
+            return self.cur_line.strip().split()[0]
     
     # 現在のコマンドの第二引数を返す
     def arg2(self) -> str:
@@ -70,16 +73,18 @@ class Parser:
 class CodeWriter:
     def __init__(self, file_path: str):
         self.file_path = file_path
-        self.fp = open(file_path, "r")
+        self.file_name = os.path.splitext(os.path.basename(file_path))[0]
+        self.fp = open(file_path, "w")
         self.cur_line = ""
+        self.label_counter = 0
 
     def close(self):
         self.fp.close()
 
     # 算術論理コマンドのcmdに対応するアセンブリコードを出力ファイルに書き込む
     def WriteArithmetic(self, cmd: str):
-        cmd_lis = cmd.strip().split()
-        if cmd_lis[0] == "add":
+
+        if cmd == "add":
             asm_code = """
                 @SP
                 M=M-1
@@ -92,7 +97,7 @@ class CodeWriter:
                 @SP
                 M=M+1
                 """
-        elif cmd_lis[0] == "sub":
+        elif cmd == "sub":
             asm_code = """
                 @SP
                 M=M-1
@@ -104,7 +109,7 @@ class CodeWriter:
                 M=M-D
                 @SP
                 M=M+1"""
-        elif cmd_lis[0] == "neg":
+        elif cmd == "neg":
             asm_code = """
                 @SP
                 M=M-1
@@ -113,8 +118,10 @@ class CodeWriter:
                 @SP
                 M=M+1
                 """
-        elif cmd_lis[0] == "eq":
-            jump_label = cmd_lis[1]
+        elif cmd == "eq":
+            jump_label = f"Jmp_{self.label_counter}"
+            end_label = f"end_{self.label_counter}"
+            self.label_counter += 1
             asm_code = f"""
                 @SP
                 M=M-1
@@ -123,24 +130,26 @@ class CodeWriter:
                 @SP
                 M=M-1
                 A=M
-                D=D-A
+                D=M-D
                 @{jump_label}
                 D;JEQ
                 @SP
                 A=M
                 M=0
-                @END
+                @{end_label}
                 0;JMP
                 ({jump_label})
                 @SP
                 A=M
                 M=-1
-                (END)
+                ({end_label})
                 @SP
                 M=M+1
                 """
-        elif cmd_lis[0] == "gt":
-            jump_label = cmd_lis[1]
+        elif cmd == "gt":
+            jump_label = f"Jmp_{self.label_counter}"
+            end_label = f"end_{self.label_counter}"
+            self.label_counter += 1
             asm_code = f"""
                 @SP
                 M=M-1
@@ -149,24 +158,26 @@ class CodeWriter:
                 @SP
                 M=M-1
                 A=M
-                D=D-A
+                D=M-D
                 @{jump_label}
                 D;JGT
                 @SP
                 A=M
                 M=0
-                @END
+                @{end_label}
                 0;JMP
                 ({jump_label})
                 @SP
                 A=M
                 M=-1
-                (END)
+                ({end_label})
                 @SP
                 M=M+1
                 """
-        elif cmd_lis[0] == "lt":
-            jump_label = cmd_lis[1]
+        elif cmd == "lt":
+            jump_label = f"Jmp_{self.label_counter}"
+            end_label = f"end_{self.label_counter}"
+            self.label_counter += 1
             asm_code = f"""
                 @SP
                 M=M-1
@@ -175,23 +186,23 @@ class CodeWriter:
                 @SP
                 M=M-1
                 A=M
-                D=D-A
+                D=M-D
                 @{jump_label}
                 D;JLT
                 @SP
                 A=M
                 M=0
-                @END
+                @{end_label}
                 0;JMP
                 ({jump_label})
                 @SP
                 A=M
                 M=-1
-                (END)
+                ({end_label})
                 @SP
                 M=M+1
                 """
-        elif cmd_lis[0] == "and":
+        elif cmd == "and":
             asm_code = """
                 @SP
                 M=M-1
@@ -204,7 +215,7 @@ class CodeWriter:
                 @SP
                 M=M+1
                 """   
-        elif cmd_lis[0] == "or":
+        elif cmd == "or":
             asm_code = """
                 @SP
                 M=M-1
@@ -217,7 +228,7 @@ class CodeWriter:
                 @SP
                 M=M+1
                 """   
-        elif cmd_lis[0] == "not":
+        elif cmd == "not":
             asm_code = """
                 @SP
                 M=M-1
@@ -229,7 +240,124 @@ class CodeWriter:
         self.fp.write(asm_code)
 
     # push, popのcommandに対応するアセンブリコードを出力ファイルに書き込む
-    def WritePushPop(self, cmd, segment, index):
-        return 0
-    
+    def WritePushPop(self, cmd: int, segment, index):
+        if cmd == C_PUSH:
+
+            if segment == "constant":
+                asm_code = f"""
+                    @{index}
+                    D=A
+                    @SP
+                    A=M
+                    M=D
+                    @SP
+                    M=M+1
+                    """
+                
+            elif segment in ["local", "argument", "this", "that"]:
+                seg_map = {
+                    "local": "LCL",
+                    "argument": "ARG",
+                    "this": "THIS",
+                    "that": "THAT"
+                }
+                seg = seg_map[segment]
+                asm_code = f"""
+                    @{seg}
+                    D=M
+                    @{index}
+                    A=D+A
+                    D=M
+                    @SP
+                    A=M
+                    M=D
+                    @SP
+                    M=M+1
+                    """ 
+            elif segment == "temp":
+                addr = index + 5
+                asm_code = f"""
+                    @{addr}
+                    D=M
+                    @SP
+                    A=M
+                    M=D
+                    @SP
+                    M=M+1
+                    """
+            elif segment == "static":
+                asm_code = f"""
+                    @{self.file_name}.{index}
+                    D=M
+                    @SP
+                    A=M
+                    M=D
+                    @SP
+                    M=M+1
+                    """
+            elif segment == "pointer":
+                addr = "THIS" if index == 0 else "THAT"
+                asm_code = f"""
+                    @{addr}
+                    D=M
+                    @SP
+                    A=M
+                    M=D
+                    @SP
+                    M=M+1
+                    """
+        elif cmd == C_POP:
+            if segment in ["local", "argument", "this", "that"]:
+                seg_map = {
+                    "local": "LCL",
+                    "argument": "ARG",
+                    "this": "THIS",
+                    "that": "THAT"
+                }
+                seg = seg_map[segment]
+                asm_code = f"""
+                    @{seg}
+                    D=M
+                    @{index}
+                    D=D+A
+                    @R13
+                    M=D
+                    @SP
+                    M=M-1
+                    A=M
+                    D=M
+                    @R13
+                    A=M
+                    M=D
+                    """
+            elif segment == "temp":
+                addr = index + 5
+                asm_code = f"""
+                    @SP
+                    M=M-1
+                    A=M
+                    D=M
+                    @{addr}
+                    M=D
+                    """
+            elif segment == "static":
+                asm_code = f"""
+                    @SP
+                    M=M-1
+                    A=M
+                    D=M
+                    @{self.file_name}.{index}
+                    M=D
+                    """
+            elif segment == "pointer":
+                addr = "THIS" if index == 0 else "THAT"
+                asm_code = f"""
+                    @SP
+                    M=M-1
+                    A=M
+                    D=M
+                    @{addr}
+                    M=D
+                    """
+        self.fp.write(asm_code)    
 
