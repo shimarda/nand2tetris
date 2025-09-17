@@ -1,4 +1,5 @@
 import os
+import sys
 
 C_ARITHMETIC = 0
 C_PUSH = 1
@@ -35,7 +36,22 @@ class Parser:
 
     # 現在のコマンドの種類の定数を返す
     def commandType(self):
-        cmd = self.cur_line.strip().split()[0]
+        line = self.cur_line.strip()
+        if not line or line.startswith('//'):
+            return None
+        
+        if '//' in line:
+            line = line[:line.index('//')]
+        
+        line = line.strip()
+        if not line:
+            return None
+        
+        parts = line.split()
+        if not parts:
+            return None
+
+        cmd = parts[0]
 
         if cmd in ["add", "sub", "neg", "eq", "gt", "lt", "and", "or", "not"]:
             self.cmd_type = C_ARITHMETIC
@@ -58,17 +74,33 @@ class Parser:
     
     # 現在のコマンドの第一引数を返す
     def arg1(self) -> str:
+        line = self.cur_line.strip()
+        if '//' in line:
+            line = line[:line.index('//')]
+        
+        line = line.strip()
+        parts = line.split()
+
         if self.cmd_type != C_ARITHMETIC:
-            line = self.cur_line
-            return str(line.strip().split()[1])
+            return parts[1]
         else:
-            return self.cur_line.strip().split()[0]
+            return parts[0]
     
     # 現在のコマンドの第二引数を返す
     def arg2(self) -> str:
+        line = self.cur_line.strip()
+
+        if '//' in line:
+            line = line[:line.index('//')]
+
+        line = line.strip()
+        parts = line.split()
+
+
         if self.cmd_type in [C_PUSH, C_POP, C_FUNCTION, C_CALL]:
-            line = self.cur_line
-            return str(line.strip().split()[2])
+            return parts[2]
+        else:
+            return None
 
 class CodeWriter:
     def __init__(self, file_path: str):
@@ -113,8 +145,8 @@ class CodeWriter:
             asm_code = """
                 @SP
                 M=M-1
-                D=M
-                M=-D
+                A=M
+                M=-M
                 @SP
                 M=M+1
                 """
@@ -125,8 +157,8 @@ class CodeWriter:
             asm_code = f"""
                 @SP
                 M=M-1
-                D=M
                 A=M
+                D=M
                 @SP
                 M=M-1
                 A=M
@@ -153,8 +185,8 @@ class CodeWriter:
             asm_code = f"""
                 @SP
                 M=M-1
-                D=M
                 A=M
+                D=M
                 @SP
                 M=M-1
                 A=M
@@ -181,8 +213,8 @@ class CodeWriter:
             asm_code = f"""
                 @SP
                 M=M-1
-                D=M
                 A=M
+                D=M
                 @SP
                 M=M-1
                 A=M
@@ -206,12 +238,12 @@ class CodeWriter:
             asm_code = """
                 @SP
                 M=M-1
-                D=M
                 A=M
+                D=M
                 @SP
                 M=M-1
                 A=M
-                M=M&D
+                M=D&M
                 @SP
                 M=M+1
                 """   
@@ -219,12 +251,12 @@ class CodeWriter:
             asm_code = """
                 @SP
                 M=M-1
-                D=M
                 A=M
+                D=M
                 @SP
                 M=M-1
                 A=M
-                M=M|D
+                M=D|M
                 @SP
                 M=M+1
                 """   
@@ -232,8 +264,8 @@ class CodeWriter:
             asm_code = """
                 @SP
                 M=M-1
-                D=M
-                M=!D
+                A=M
+                M=!M
                 @SP
                 M=M+1
                 """   
@@ -241,6 +273,8 @@ class CodeWriter:
 
     # push, popのcommandに対応するアセンブリコードを出力ファイルに書き込む
     def WritePushPop(self, cmd: int, segment, index):
+        index = int(index)
+
         if cmd == C_PUSH:
 
             if segment == "constant":
@@ -361,3 +395,50 @@ class CodeWriter:
                     """
         self.fp.write(asm_code)    
 
+class VMTranslator:
+    def __init__(self, input_file_path, output_file_path):
+        self.input_file_path = input_file_path
+        self.output_file_path = output_file_path
+
+    def translate(self):
+        parser = Parser(self.input_file_path)
+        code_writer = CodeWriter(self.output_file_path)
+
+        try:
+            while parser.hasMoreLines():
+                parser.advance()
+                cmd_type = parser.commandType()
+
+                if cmd_type is None:
+                    continue
+
+                if cmd_type == C_ARITHMETIC:
+                    cmd = parser.arg1()
+                    code_writer.WriteArithmetic(cmd)
+                elif cmd_type in [C_POP, C_PUSH]:
+                    seg = parser.arg1()
+                    index = parser.arg2()
+                    code_writer.WritePushPop(cmd_type,seg, index)
+        finally:
+            parser.close()
+            code_writer.close()
+    
+if __name__ == '__main__':
+    if len(sys.argv) != 2:
+        sys.exit(1)
+
+    input_file = sys.argv[1]
+    if not os.path.exists(input_file):
+        print("ファイルが存在しない")
+        sys.exit(1)
+
+    if not input_file.endswith(".vm"):
+        print("拡張子が異なる")
+        sys.exit(1)
+
+    output_file = input_file.replace('.vm', '.asm')
+
+    translator = VMTranslator(input_file, output_file)
+    translator.translate()
+
+    print("変換終了")
