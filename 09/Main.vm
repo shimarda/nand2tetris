@@ -1,0 +1,32 @@
+function Main.main 1
+    push constant 0
+    call String.new 1
+    call Keyboard.readInt 1
+    pop local 0
+    push local 0
+    push constant 126
+    lt
+    not
+    if-goto Main_1
+    push constant 4
+    call Output.printInt 1
+    pop temp 0
+    goto Main_0
+label Main_1
+    push local 0
+    push constant 212
+    lt
+    not
+    if-goto Main_3
+    push constant 6
+    call Output.printInt 1
+    pop temp 0
+    goto Main_2
+label Main_3
+    push constant 8
+    call Output.printInt 1
+    pop temp 0
+label Main_2
+label Main_0
+    push constant 0
+    return
