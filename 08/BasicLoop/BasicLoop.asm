@@ -129,7 +129,7 @@
             A=M
             D=M
             @LOOP
-            D;JEQ
+            D;JNE
             
                     @LCL
                     D=M

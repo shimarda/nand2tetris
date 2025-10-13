@@ -110,6 +110,14 @@ class CodeWriter:
         self.fp = open(file_path, "w")
         self.cur_line = ""
         self.label_counter = 0
+        asm_code = """
+            @256
+            D=A
+            @SP
+            M=D
+            """
+        self.fp.write(asm_code)
+        self.writeCall("Sys.init", 0)
 
     def close(self):
         self.fp.close()
@@ -424,7 +432,7 @@ class CodeWriter:
             A=M
             D=M
             @{label}
-            D;JEQ
+            D;JNE
             """
         self.fp.write(asm_code)
 
@@ -446,7 +454,7 @@ class CodeWriter:
     # callコマンドの実装
     def writeCall(self, functionName: str, nArgs: int):
         asm_code = f"""
-            @{functionName}$ret.i{self.label_counter}
+            @{functionName}$ret.{self.label_counter}
             D=A
             @SP
             A=M
@@ -482,7 +490,11 @@ class CodeWriter:
             @SP
             M=M+1
             @SP
-            D=M-5-{nArgs}
+            D=M
+            @5
+            D=D-A
+            @{nArgs}
+            D=D-A
             @ARG
             M=D
             @SP
@@ -491,7 +503,7 @@ class CodeWriter:
             M=D
             @{functionName}
             0;JMP
-            ({functionName}$ret{self.label_counter})
+            ({functionName}$ret.{self.label_counter})
             """
         self.label_counter += 1
         self.fp.write(asm_code)
@@ -553,68 +565,75 @@ class CodeWriter:
         self.fp.write(asm_code)
 
 class VMTranslator:
-    def __init__(self, input_file_path, output_file_path):
-        self.input_file_path = input_file_path
-        self.output_file_path = output_file_path
+    def __init__(self, input_path):
+        self.input_path = input_path
+        
+        # 出力ファイル名を決定
+        dir_name = os.path.basename(os.path.normpath(input_path))
+        self.output_file = os.path.join(input_path, f"{dir_name}.asm")
+        
+        # .vmファイルのリストを取得
+        self.vm_files = [f for f in os.listdir(input_path) if f.endswith('.vm')]
+        print(f"見つかったファイル: {self.vm_files}")
 
     def translate(self):
-        parser = Parser(self.input_file_path)
-        code_writer = CodeWriter(self.output_file_path)
-
+        # 1つのCodeWriterインスタンスを作成(ブートストラップコード込み)
+        code_writer = CodeWriter(self.output_file)
+        
         try:
-            code_writer.setFileName(self.input_file_path)
-            while parser.hasMoreLines():
-                parser.advance()
-                cmd_type = parser.commandType()
+            # 各.vmファイルを順番に処理
+            for vm_file in self.vm_files:
+                full_input_path = os.path.join(self.input_path, vm_file)
+                parser = Parser(full_input_path)
+                code_writer.setFileName(full_input_path)
+                
+                try:
+                    while parser.hasMoreLines():
+                        parser.advance()
+                        cmd_type = parser.commandType()
 
-                if cmd_type is None:
-                    continue
+                        if cmd_type is None:
+                            continue
 
-                if cmd_type == C_ARITHMETIC:
-                    cmd = parser.arg1()
-                    code_writer.WriteArithmetic(cmd)
-                elif cmd_type in [C_POP, C_PUSH]:
-                    seg = parser.arg1()
-                    index = parser.arg2()
-                    code_writer.WritePushPop(cmd_type,seg, index)
-                elif cmd_type == C_LABEL:
-                    label = parser.arg1()
-                    code_writer.writeLabel(label)
-                elif cmd_type == C_GOTO:
-                    label = parser.arg1()
-                    code_writer.writeGoto(label)
-                elif cmd_type == C_IF:
-                    label = parser.arg1()
-                    code_writer.writeIf(label)
-                elif cmd_type == C_CALL:
-                    function_name = parser.arg1()
-                    args_num = parser.arg2()
-                    code_writer.writeCall(function_name, args_num)
-                elif cmd_type == C_FUNCTION:
-                    function_name = parser.arg1()
-                    args_num = parser.arg2()
-                    code_writer.writeFunction(function_name, args_num)
-                elif cmd_type == C_RETURN:
-                    code_writer.writeReturn()         
+                        if cmd_type == C_ARITHMETIC:
+                            cmd = parser.arg1()
+                            code_writer.WriteArithmetic(cmd)
+                        elif cmd_type in [C_POP, C_PUSH]:
+                            seg = parser.arg1()
+                            index = parser.arg2()
+                            code_writer.WritePushPop(cmd_type, seg, index)
+                        elif cmd_type == C_LABEL:
+                            label = parser.arg1()
+                            code_writer.writeLabel(label)
+                        elif cmd_type == C_GOTO:
+                            label = parser.arg1()
+                            code_writer.writeGoto(label)
+                        elif cmd_type == C_IF:
+                            label = parser.arg1()
+                            code_writer.writeIf(label)
+                        elif cmd_type == C_CALL:
+                            function_name = parser.arg1()
+                            args_num = parser.arg2()
+                            code_writer.writeCall(function_name, int(args_num))
+                        elif cmd_type == C_FUNCTION:
+                            function_name = parser.arg1()
+                            args_num = parser.arg2()
+                            code_writer.writeFunction(function_name, int(args_num))
+                        elif cmd_type == C_RETURN:
+                            code_writer.writeReturn()
+                finally:
+                    parser.close()
         finally:
-            parser.close()
             code_writer.close()
+
     
 if __name__ == '__main__':
     if len(sys.argv) != 2:
         sys.exit(1)
 
-    input_dir = sys.argv[1]
-    files = os.listdir(input_dir)
-    print(files)
+    input_path = sys.argv[1]
     
-    for input_file in files:
-        if input_file.endswith('.vm'):
-            # フルパスを構築
-            full_input_path = os.path.join(input_dir, input_file)
-            output_file = os.path.join(input_dir, input_file.replace('.vm', '.asm'))
-            
-            translator = VMTranslator(full_input_path, output_file)
-            translator.translate()
+    translator = VMTranslator(input_path)
+    translator.translate()
 
     print("変換終了")
