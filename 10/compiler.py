@@ -50,6 +50,9 @@ class JackTokenizer:
             return False
         else:
             return True
+        
+    def tokenizeLine(self):
+
             
     def advance(self):
         self.cur_line = self.fp.readline()
@@ -77,56 +80,90 @@ class JackTokenizer:
         return self.token_type
     
     def KeyWord(self):
-        if self.cur_token is "class":
+        if self.cur_token == "class":
             return CLASS
-        elif self.cur_token is "method":
+        elif self.cur_token == "method":
             return METHOD
-        elif self.cur_token is "function":
+        elif self.cur_token == "function":
             return FUNCTION
-        elif self.cur_token is "constructor":
+        elif self.cur_token == "constructor":
             return CONSTRUCTOR
-        elif self.cur_token is "int":
+        elif self.cur_token == "int":
             return INT
-        elif self.cur_token is "boolean":
+        elif self.cur_token == "boolean":
             return BOOLEAN
-        elif self.cur_token is "char":
+        elif self.cur_token == "char":
             return CHAR
-        elif self.cur_token is "void":
+        elif self.cur_token == "void":
             return VOID
-        elif self.cur_token is "var":
+        elif self.cur_token == "var":
             return VAR
-        elif self.cur_token is "static":
+        elif self.cur_token == "static":
             return STATIC
-        elif self.cur_token is "field":
+        elif self.cur_token == "field":
             return FIELD
-        elif self.cur_token is "let":
+        elif self.cur_token == "let":
             return LET
-        elif self.cur_token is "do":
+        elif self.cur_token == "do":
             return DO
-        elif self.cur_token is "if":
+        elif self.cur_token == "if":
             return IF
-        elif self.cur_token is "else":
+        elif self.cur_token == "else":
             return ELSE
-        elif self.cur_token is "while":
+        elif self.cur_token == "while":
             return WHILE
-        elif self.cur_token is "return":
+        elif self.cur_token == "return":
             return RETURN
-        elif self.cur_token is "true":
+        elif self.cur_token == "true":
             return TRUE
-        elif self.cur_token is "false":
+        elif self.cur_token == "false":
             return FALSE
-        elif self.cur_token is "null":
+        elif self.cur_token == "null":
             return NULL
-        elif self.cur_token is "this":
+        elif self.cur_token == "this":
             return THIS
 
-    def symbol(self):
+    def symbol(self) -> str:
+        return self.cur_token
+    
+    def identifier(self) -> str:
+        return self.cur_token
+    
+    def intVal(self) -> int:
+        return int(self.cur_token)
+    
+    def stringVal(self) -> str:
         return self.cur_token
 
-
 class CompilationEngine:
-    def __init__(self):
-        self.file = ""
+    def __init__(self, input_file: str, output_file: str):
+        self.input_file = JackTokenizer(input_file)
+        self.output_file = output_file
+        self.fp_in = open(input_file, "r")
+        self.fp_out = open(output_file, "w")
+
+    def compileClass(self) -> None:
+
+        if (self.input_file.token_type == CLASS):
+            self.fp_out.write(f"<class> {self.input_file.cur_token} </class>")
+
+    def compileClassVarDec(self) -> None:
+        if (self.input_file.token_type == STATIC):
+            self.fp_out.write(f"<static> {self.input_file.cur_token} </static>")
+        elif (self.input_file.token_type == FIELD):
+            self.fp_out.write(f"<field> {self.input_file.cur_token} </field>")
+        
+    def compileSubroutine(self) -> None:
+        if (self.input_file.token_type == METHOD):
+            self.fp_out.write(f"<method> {self.input_file.cur_token} </method>")
+        elif (self.input_file.token_type == FUNCTION):
+            self.fp_out.write(f"<function> {self.input_file.cur_token} </function>")
+        elif (self.input_file.token_type == CONSTRUCTOR):
+            self.fp_out.write(f"<constructor> {self.input_file.cur_token} </constructor>")
+    
+    def compileParameterList(self) -> None:
+
+
 
 class JackAnalyzer:
     def __init__(self):
