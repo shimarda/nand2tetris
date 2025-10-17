@@ -203,16 +203,35 @@ class CompilationEngine:
         self.fp_out = open(output_file, "w")
 
     def compileClass(self) -> None:
+        classname = self.input_file.cur_token
+        print(f"<class>")
+        print(f"<keyword> class </keyword>")
+        print(f"<identifier> {classname} </idetifier>")
+        print("<symbol> { </symbol>")
+        self.input_file.cur_position += 3
+        self.input_file.cur_token = self.input_file.token_lst[self.input_file.cur_position]
+        self.compileClassVarDec()
+        self.compileSubroutine()
+        print("}")
+        print("</class>")
+        self.input_file.cur_position += 1
+        self.input_file.cur_token = self.input_file.token_lst[self.input_file.cur_position]
 
-        if (self.input_file.cur_token_type == CLASS):
-            self.fp_out.write(f"<class> {self.input_file.cur_token} </class>")
 
     def compileClassVarDec(self) -> None:
-        if (self.input_file.cur_token_type == STATIC):
-            self.fp_out.write(f"<static> {self.input_file.cur_token} </static>")
-        elif (self.input_file.cur_token_type == FIELD):
-            self.fp_out.write(f"<field> {self.input_file.cur_token} </field>")
+        print("<classVarDec>")
+        if self.input_file.cur_token_type == STATIC:
+            keyword = "static"
+        elif self.input_file.cur_token_type == FIELD:
+            keyword = "field"
+        print(f"<keyword> {keyword} </keyword>")
+        self.input_file.cur_position += 1
+        self.input_file.cur_token = self.input_file.token_lst[self.input_file.cur_position]
+        # ここ修正必要
+        if self.input_file.cur_token in keyword_lst:
+            print(f"<type> {self.input_file.cur_token} </type>")
         
+
     def compileSubroutine(self) -> None:
         if (self.input_file.cur_token_type == METHOD):
             self.fp_out.write(f"<method> {self.input_file.cur_token} </method>")
@@ -222,8 +241,40 @@ class CompilationEngine:
             self.fp_out.write(f"<constructor> {self.input_file.cur_token} </constructor>")
     
     def compileParameterList(self) -> None:
+        print("hello")
 
+    def compileSubroutineBody(self) -> None:
+        print("hello")
 
+    def compileVarDec(self) -> None:
+        print("hello")
+
+    def compileStatements(self) -> None:
+        print("hello")
+
+    def compileLet(self) -> None:
+        print("hello")
+
+    def compileIf(self) -> None:
+        print("hello")
+
+    def compileWhile(self) -> None:
+        print("hello")
+
+    def compileDo(self) -> None:
+        print("hello")
+
+    def compileReturn(self) -> None:
+        print("hello")
+
+    def compileExpression(self) -> None:
+        print("hello")
+
+    def compileTerm(self) -> None:
+        print("hello")
+
+    def compileExpressionList(self) -> int:
+        print("hello")
 
 class JackAnalyzer:
     def __init__(self):
