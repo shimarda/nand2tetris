@@ -134,9 +134,10 @@ class JackTokenizer:
             self.cur_token_type = KEYWORD
         elif token in symbol_lst:
             self.cur_token_type = SYMBOL
-        elif 0 <= int(token) <= 32767:
+        elif token.isdigit() and 0 <= int(token) <= 32767:  # 先に数値チェック
             self.cur_token_type = INT_CONST
-        elif '"' not in token and '\n' not in token:
+        elif (self.cur_position > 0 and 
+            self.token_lst[self.cur_position - 1] == '"'):
             self.cur_token_type = STRING_CONST
         else:
             self.cur_token_type = IDENTIFIER
@@ -212,12 +213,12 @@ class CompilationEngine:
 
     def compileClass(self) -> None:
         classname = self.input_file.cur_token
-        self.fp_out.write(f"<class>")
-        self.fp_out.write(f"<keyword> class </keyword>")
+        self.fp_out.write(f"<class>\n")
+        self.fp_out.write(f"<keyword> class </keyword>\n")
         self.input_file.advance()
-        self.fp_out.write(f"<identifier> {classname} </identifier>")
+        self.fp_out.write(f"<identifier> {classname} </identifier>\n")
         self.input_file.advance()
-        self.fp_out.write("<symbol> { </symbol>")
+        self.fp_out.write("<symbol> { </symbol>\n")
         self.input_file.advance()
 
         while (self.input_file.cur_token in ['static', 'field']):
@@ -226,8 +227,8 @@ class CompilationEngine:
         while (self.input_file.cur_token in ['constructor', 'function', 'method']):
             self.compileSubroutine()
 
-        self.fp_out.write("<symbol> } </symbol>")
-        self.fp_out.write("</class>")
+        self.fp_out.write("<symbol> } </symbol>\n")
+        self.fp_out.write("</class>\n")
         self.input_file.advance()
 
 
@@ -254,35 +255,28 @@ class CompilationEngine:
         self.fp_out.write("</classVarDec>\n")
 
     def compileSubroutine(self) -> None:
-        if (self.input_file.cur_token_type == METHOD):
-            self.fp_out.write(f"<keyword> {self.input_file.cur_token} </keyword>")
-        elif (self.input_file.cur_token_type == FUNCTION):
-            self.fp_out.write(f"<function> {self.input_file.cur_token} </function>")
-        elif (self.input_file.cur_token_type == CONSTRUCTOR):
-            self.fp_out.write(f"<constructor> {self.input_file.cur_token} </constructor>")
+        self.fp_out.write("<subroutineDec>\n")
+        self.fp_out.write(f"<keyword> {self.input_file.cur_token} </keyword>\n")
 
         self.input_file.advance()   
 
-        if (self.input_file.cur_token == 'void'):
-            label = 'keyword'
-        else:
-            label = 'identifier'
-        self.fp_out.write(f"<{label}> {self.input_file.cur_token} </{label}>")
+ 
+        self.fp_out.write(f"<keyword> {self.input_file.cur_token} </keyword>\n")
         self.input_file.advance() 
 
-        self.fp_out.write(f"<identifier> {self.input_file.cur_token} </identifier>")
+        self.fp_out.write(f"<identifier> {self.input_file.cur_token} </identifier>\n")
         self.input_file.advance()
 
-        self.fp_out.write('<symbol> ( </symbol>')
+        self.fp_out.write('<symbol> ( </symbol>\n')
         self.input_file.advance()
 
         self.compileParameterList()
 
-        self.fp_out.write("<symbol> ) </symbol>")
+        self.fp_out.write("<symbol> ) </symbol>\n")
         self.input_file.advance()
 
         self.compileSubroutineBody()
-
+        self.fp_out.write("</subroutineDec>\n")
     
     def compileParameterList(self) -> None:
         self.fp_out.write("<parameterList>\n")
@@ -304,7 +298,8 @@ class CompilationEngine:
         self.fp_out.write("</parameterList>\n")
 
     def compileSubroutineBody(self) -> None:
-        self.fp_out.write("<symbol> { </symbol>")
+        self.fp_out.write("<subroutineBody>\n")
+        self.fp_out.write("<symbol> { </symbol>\n")
         self.input_file.advance()
 
         while (self.input_file.cur_token == 'var'):
@@ -312,28 +307,32 @@ class CompilationEngine:
 
         self.compileStatements()
 
-        self.fp_out.write("<symbol> } </symbol>")
+        self.fp_out.write("<symbol> } </symbol>\n")
         self.input_file.advance()
+        self.fp_out.write("</subroutineBody>\n")
 
     def compileVarDec(self) -> None:
-        self.fp_out.write("<keyword> var </keyword>")
+        self.fp_out.write("<varDec>\n")
+        self.fp_out.write("<keyword> var </keyword>\n")
         self.input_file.advance()
 
         self.compileType()
 
-        self.fp_out.write(f"<identifier> {self.input_file.cur_token} </identifier>")
+        self.fp_out.write(f"<identifier> {self.input_file.cur_token} </identifier>\n")
         self.input_file.advance()
 
         while (self.input_file.cur_token == ','):
-            self.fp_out.write("<symbol> , </symbol>")
+            self.fp_out.write("<symbol> , </symbol>\n")
             self.input_file.advance()
-            self.fp_out.write(f"<identifier> {self.input_file.cur_token} </identifier>")
+            self.fp_out.write(f"<identifier> {self.input_file.cur_token} </identifier>\n")
             self.input_file.advance()
         
-        self.fp_out.write("<symbol> ; </symbol>")
+        self.fp_out.write("<symbol> ; </symbol>\n")
         self.input_file.advance()
+        self.fp_out.write("</varDec>\n")
 
     def compileStatements(self) -> None:
+        self.fp_out.write("<statements>\n")
         while (self.input_file.cur_token in ['let', 'if', 'while', 'do', 'return']):
             if self.input_file.cur_token == 'let':
                 self.compileLet()
@@ -345,111 +344,122 @@ class CompilationEngine:
                 self.compileDo()
             elif self.input_file.cur_token == 'return':
                 self.compileReturn()
+        self.fp_out.write("</statements>\n")
 
     def compileLet(self) -> None:
-        self.fp_out.write("<keyword> let </keyword>")
+        self.fp_out.write("<letStatement>\n")
+        self.fp_out.write("<keyword> let </keyword>\n")
         self.input_file.advance()
 
-        self.fp_out.write(f"<identifier> {self.input_file.cur_token} </identifier>")
+        self.fp_out.write(f"<identifier> {self.input_file.cur_token} </identifier>\n")
         self.input_file.advance()
 
         if self.input_file.cur_token == '[':
-            self.fp_out.write("<symbol> [ </symbol>")
+            self.fp_out.write("<symbol> [ </symbol>\n")
             self.input_file.advance()
             self.compileExpression()
-            self.fp_out.write("<symbol> ] </symbol>")
+            self.fp_out.write("<symbol> ] </symbol>\n")
             self.input_file.advance()
         
-        self.fp_out.write("<symbol> = </symbol>")
+        self.fp_out.write("<symbol> = </symbol>\n")
         self.input_file.advance()
 
         self.compileExpression()
 
-        self.fp_out.write("<symbol> ; </symbol>")
+        self.fp_out.write("<symbol> ; </symbol>\n")
         self.input_file.advance()
+        self.fp_out.write("</letStatement>\n")
 
     def compileIf(self) -> None:
-        self.fp_out.write("<keyword> if </keyword>")
+        self.fp_out.write("<ifStatement>\n")
+        self.fp_out.write("<keyword> if </keyword>\n")
         self.input_file.advance()
 
-        self.fp_out.write("<symbol> ( </symbol>")
+        self.fp_out.write("<symbol> ( </symbol>\n")
         self.input_file.advance()
 
         self.compileExpression()
 
-        self.fp_out.write("<symbol> ) </symbol>")
+        self.fp_out.write("<symbol> ) </symbol>\n")
         self.input_file.advance()
-        self.fp_out.write("<symbol> { </symbol>")
+        self.fp_out.write("<symbol> { </symbol>\n")
         self.input_file.advance()
 
         self.compileStatements()
 
-        self.fp_out.write("<symbol> } </symbol>")
+        self.fp_out.write("<symbol> } </symbol>\n")
         self.input_file.advance()
 
         if self.input_file.cur_token == 'else':
-            self.fp_out.write("<keyword> else </keyword>")
+            self.fp_out.write("<keyword> else </keyword>\n")
             self.input_file.advance()
-            self.fp_out.write("<symbol> { </symbol>")
+            self.fp_out.write("<symbol> { </symbol>\n")
             self.input_file.advance()
 
             self.compileStatements()
 
-            self.fp_out.write("<symbol> } </symbol>")
+            self.fp_out.write("<symbol> } </symbol>\n")
             self.input_file.advance()
 
+        self.fp_out.write("</ifStatement>\n")
 
     def compileWhile(self) -> None:
-        self.fp_out.write("<keyword> while </keyword>")
+        self.fp_out.write("<whileStatement>\n")
+        self.fp_out.write("<keyword> while </keyword>\n")
         self.input_file.advance()
 
-        self.fp_out.write("<symbol> ( </symbol>")
+        self.fp_out.write("<symbol> ( </symbol>\n")
         self.input_file.advance()
 
         self.compileExpression()
 
-        self.fp_out.write("<symbol> ) </symbol>")
+        self.fp_out.write("<symbol> ) </symbol>\n")
         self.input_file.advance()
 
-        self.fp_out.write("<symbol> { </symbol>")
+        self.fp_out.write("<symbol> { </symbol>\n")
         self.input_file.advance()
 
         self.compileStatements()
 
-        self.fp_out.write("<symbol> } </symbol>")
+        self.fp_out.write("<symbol> } </symbol>\n")
         self.input_file.advance()
+        self.fp_out.write("</whileStatement>\n")
 
     def compileDo(self) -> None:
-        self.fp_out.write("<keyword> do </keyword>")
+        self.fp_out.write("<doStatement>\n")
+        self.fp_out.write("<keyword> do </keyword>\n")
         self.input_file.advance()
 
         self.compileSubroutineCall()
 
-        self.fp_out.write("<symbol> ; </symbol>")
+        self.fp_out.write("<symbol> ; </symbol>\n")
         self.input_file.advance()
+        self.fp_out.write("</doStatement>\n")
 
     def compileReturn(self) -> None:
-        self.fp_out.write("<keyword> return </keyword>")
+        self.fp_out.write("<returnStatement>\n")
+        self.fp_out.write("<keyword> return </keyword>\n")
         self.input_file.advance()
 
         if self.input_file.cur_token != ";":
             self.compileExpression()
         
-        self.fp_out.write("<symbol> ; </symbol>")
+        self.fp_out.write("<symbol> ; </symbol>\n")
         self.input_file.advance()
-
+        self.fp_out.write("</returnStatement>\n")
 
     def compileExpression(self) -> None:
+        self.fp_out.write("<expression>\n")
         self.compileTerm()
-
         while self.input_file.cur_token in op_lst:
-            self.fp_out.write(f"<symbol> {self.input_file.cur_token} </symbol>")
+            self.fp_out.write(f"<symbol> {self.input_file.cur_token} </symbol>\n")
             self.input_file.advance()
             
             self.compileTerm()
+        self.fp_out.write("</expression>\n")
 
     def compileTerm(self) -> None:
-
+        self.fp_out.write("<term>\n")
         if self.input_file.cur_token.isdigit():
             self.fp_out.write(f"<integerConstant> {self.input_file.cur_token} </integerConstant>\n")
             self.input_file.advance()
@@ -494,51 +504,50 @@ class CompilationEngine:
             else:
                 self.fp_out.write(f"<identifier> {self.input_file.cur_token} </identifier>\n")
                 self.input_file.advance()
+        self.fp_out.write("</term>\n")
 
     def compileExpressionList(self) -> int:
         print("hello")
 
     def compileType(self) -> None:
         if self.input_file.cur_token in ['int', 'char', 'boolean']:
-            self.fp_out.write(f"<keyword> {self.input_file.cur_token} </keyword>")
+            self.fp_out.write(f"<keyword> {self.input_file.cur_token} </keyword>\n")
             self.input_file.advance()
         else:
-            self.fp_out.write(f"<identifier> {self.input_file.cur_token} </identifier>")
+            self.fp_out.write(f"<identifier> {self.input_file.cur_token} </identifier>\n")
             self.input_file.advance()
 
     def compileSubroutineCall(self) -> None:
 
         if self.input_file.token_lst[self.input_file.cur_position+1] != '.':
-            self.fp_out.write(f"<identifier> {self.input_file.cur_token} </identifier>")
+            self.fp_out.write(f"<identifier> {self.input_file.cur_token} </identifier>\n")
             self.input_file.advance()
 
-            self.fp_out.write("<symbol> ( </symbol>")
+            self.fp_out.write("<symbol> ( </symbol>\n")
             self.input_file.advance()
 
             self.compileExpressionList()
 
-            self.fp_out.write("<symbol> ) </symbol>")
+            self.fp_out.write("<symbol> ) </symbol>\n")
             self.input_file.advance()
         
         else:
-            self.fp_out.write(f"<identifier> {self.input_file.cur_token} </identifier>")
+            self.fp_out.write(f"<identifier> {self.input_file.cur_token} </identifier>\n")
             self.input_file.advance()
 
-            self.fp_out.write("<symbol> . </symbol>")
+            self.fp_out.write("<symbol> . </symbol>\n")
             self.input_file.advance()
 
-            self.fp_out.write(f"<identifier> {self.input_file.cur_token} </identifier>")
+            self.fp_out.write(f"<identifier> {self.input_file.cur_token} </identifier>\n")
             self.input_file.advance()
 
-            self.fp_out.write("<symbol> ( </symbol>")
+            self.fp_out.write("<symbol> ( </symbol>\n")
             self.input_file.advance()
 
             self.compileExpressionList()
 
-            self.fp_out.write("<symbol> ) </symbol>")
+            self.fp_out.write("<symbol> ) </symbol>\n")
             self.input_file.advance()
-
-
 
 
 class JackAnalyzer:
