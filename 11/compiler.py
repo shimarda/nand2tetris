@@ -222,7 +222,7 @@ class CompilationEngine:
             self.input_file.cur_token = self.input_file.token_lst[0]
     
     def escapeXml(self, text: str) -> str:
-        text = text.replace('&', '&amp;')  # &を最初に処理する必要がある
+        text = text.replace('&', '&amp;')
         text = text.replace('<', '&lt;')
         text = text.replace('>', '&gt;')
         text = text.replace('"', '&quot;')
@@ -232,40 +232,40 @@ class CompilationEngine:
         escaped = self.escapeXml(symbol)
         self.fp_out.write(f"<symbol> {escaped} </symbol>\n")
 
-    def writeIdentifier(self, name: str, usage: str = "used") -> None:
+    def writeIdentifier(self, name: str, usage: str) -> None:
         category = None
         index = None
+        kind = None
         
-        # サブルーチンテーブルで検索
-        kind = self.subroutine_table.kindOf(name)
-        if kind is not None:
-            category = KIND_TO_STRING.get(kind, 'unknown')
+        if self.subroutine_table.contains(name):
+            kind = self.subroutine_table.kindOf(name)
             index = self.subroutine_table.indexOf(name)
-        else:
-            # クラステーブルで検索
+            category = KIND_TO_STRING.get(kind, 'unknown')
+        
+        elif self.class_table.contains(name):
             kind = self.class_table.kindOf(name)
-            if kind is not None:
-                category = KIND_TO_STRING.get(kind, 'unknown')
-                index = self.class_table.indexOf(name)
+            index = self.class_table.indexOf(name)
+            category = KIND_TO_STRING.get(kind, 'unknown')
         
-        # カテゴリとインデックスが見つからない場合は、クラス名やサブルーチン名の可能性
-        if category is None:
-            if name == self.current_class_name:
-                category = 'class'
-                index = 'none'
+        else:
+            if usage == "defined":
+                if name == self.current_class_name:
+                    category = 'class'
+                else:
+                    category = 'subroutine'
             else:
-                category = 'subroutine'
-                index = 'none'
+                category = 'class_or_subroutine_call' 
         
-        # XML出力（属性として情報を追加）
-        self.fp_out.write(f'<identifier name="{name}" category="{category}" index="{index}" usage="{usage}"> {name} </identifier>\n')
+        if index is not None:
+            self.fp_out.write(f"<identifier> {name} (usage: {usage}, category: {category}, index: {index}) </identifier>\n")
+        else:
+            self.fp_out.write(f"<identifier> {name} (usage: {usage}, category: {category}) </identifier>\n")
 
     def compileClass(self) -> None:
         self.fp_out.write("<class>\n")
         self.fp_out.write("<keyword> class </keyword>\n")
         self.input_file.advance()
         
-        # クラス名を保存
         self.current_class_name = self.input_file.cur_token
         self.writeIdentifier(self.current_class_name, "defined")
         
@@ -285,27 +285,23 @@ class CompilationEngine:
     def compileClassVarDec(self) -> None:
         self.fp_out.write("<classVarDec>\n")
         
-        # kind (static or field)
         kind_str = self.input_file.cur_token
         if kind_str == 'static':
             kind = STATIC
-        else:  # field
+        else:
             kind = FIELD
         
         self.fp_out.write(f"<keyword> {self.input_file.cur_token} </keyword>\n")
         self.input_file.advance()
         
-        # type
         var_type = self.input_file.cur_token
         self.compileType()
         
-        # varName (1つ目)
         var_name = self.input_file.cur_token
         self.class_table.define(var_name, var_type, kind)
         self.writeIdentifier(var_name, "defined")
         self.input_file.advance()
         
-        # 追加の変数名
         while self.input_file.cur_token == ',':
             self.writeSymbol(',')
             self.input_file.advance()
@@ -320,27 +316,23 @@ class CompilationEngine:
         self.fp_out.write("</classVarDec>\n")
 
     def compileSubroutine(self) -> None:
-        # サブルーチンの開始時にサブルーチンテーブルをリセット
         self.subroutine_table.reset()
         
         self.fp_out.write("<subroutineDec>\n")
         
-        subroutine_kind = self.input_file.cur_token  # constructor, function, method
+        subroutine_type = self.input_file.cur_token
+        if subroutine_type == 'method':
+            self.subroutine_table.define("this", self.current_class_name, ARG)
+
         self.fp_out.write(f"<keyword> {self.input_file.cur_token} </keyword>\n")
         self.input_file.advance()
-        
-        # methodの場合、暗黙のthis引数を追加
-        if subroutine_kind == 'method':
-            self.subroutine_table.define('this', self.current_class_name, ARG)
-        
-        # 戻り値の型
+    
         if self.input_file.cur_token == 'void':
             self.fp_out.write(f"<keyword> void </keyword>\n")
             self.input_file.advance()
         else:
             self.compileType()
         
-        # サブルーチン名
         subroutine_name = self.input_file.cur_token
         self.writeIdentifier(subroutine_name, "defined")
         self.input_file.advance()
@@ -353,7 +345,6 @@ class CompilationEngine:
         self.writeSymbol(')')
         self.input_file.advance()
         
-        # subroutineBody
         self.fp_out.write("<subroutineBody>\n")
         self.writeSymbol('{')
         self.input_file.advance()
@@ -373,7 +364,6 @@ class CompilationEngine:
         self.fp_out.write("<parameterList>\n")
         
         if self.input_file.cur_token != ')':
-            # 1つ目のパラメータ
             param_type = self.input_file.cur_token
             self.compileType()
             
@@ -382,7 +372,6 @@ class CompilationEngine:
             self.writeIdentifier(param_name, "defined")
             self.input_file.advance()
             
-            # 追加のパラメータ
             while self.input_file.cur_token == ',':
                 self.writeSymbol(',')
                 self.input_file.advance()
@@ -403,17 +392,14 @@ class CompilationEngine:
         self.fp_out.write(f"<keyword> var </keyword>\n")
         self.input_file.advance()
         
-        # type
         var_type = self.input_file.cur_token
         self.compileType()
         
-        # varName (1つ目)
         var_name = self.input_file.cur_token
         self.subroutine_table.define(var_name, var_type, VAR)
         self.writeIdentifier(var_name, "defined")
         self.input_file.advance()
         
-        # 追加の変数名
         while self.input_file.cur_token == ',':
             self.writeSymbol(',')
             self.input_file.advance()
@@ -449,12 +435,10 @@ class CompilationEngine:
         self.fp_out.write("<keyword> let </keyword>\n")
         self.input_file.advance()
         
-        # 変数名（使用）
         var_name = self.input_file.cur_token
         self.writeIdentifier(var_name, "used")
         self.input_file.advance()
         
-        # 配列アクセス
         if self.input_file.cur_token == '[':
             self.writeSymbol('[')
             self.input_file.advance()
@@ -533,7 +517,6 @@ class CompilationEngine:
         self.fp_out.write("<keyword> do </keyword>\n")
         self.input_file.advance()
         
-        # サブルーチン呼び出し
         self.compileSubroutineCall()
         
         self.writeSymbol(';')
@@ -541,7 +524,7 @@ class CompilationEngine:
         self.fp_out.write("</doStatement>\n")
 
     def compileSubroutineCall(self) -> None:
-        # クラス名/変数名/サブルーチン名
+
         first_name = self.input_file.cur_token
         self.writeIdentifier(first_name, "used")
         self.input_file.advance()
@@ -550,7 +533,6 @@ class CompilationEngine:
             self.writeSymbol('.')
             self.input_file.advance()
             
-            # サブルーチン名
             subroutine_name = self.input_file.cur_token
             self.writeIdentifier(subroutine_name, "used")
             self.input_file.advance()
@@ -580,7 +562,6 @@ class CompilationEngine:
         self.compileTerm()
         
         while self.input_file.cur_token in op_lst:
-            # 演算子をエスケープして出力
             self.writeSymbol(self.input_file.cur_token)
             self.input_file.advance()
             
@@ -595,11 +576,10 @@ class CompilationEngine:
             self.input_file.advance()
         
         elif self.input_file.cur_position > 0 and self.input_file.token_lst[self.input_file.cur_position - 1] == '"':
-            # 文字列定数もエスケープ
             escaped_str = self.escapeXml(self.input_file.cur_token)
             self.fp_out.write(f"<stringConstant> {escaped_str} </stringConstant>\n")
             self.input_file.advance()
-            self.input_file.advance()  # 閉じ引用符をスキップ
+            self.input_file.advance()
         
         elif self.input_file.cur_token in ['true', 'false', 'null', 'this']:
             self.fp_out.write(f"<keyword> {self.input_file.cur_token} </keyword>\n")
@@ -621,7 +601,6 @@ class CompilationEngine:
             next_token = self.input_file.token_lst[self.input_file.cur_position + 1]
             
             if next_token == '[':  
-                # 配列アクセス
                 var_name = self.input_file.cur_token
                 self.writeIdentifier(var_name, "used")
                 self.input_file.advance()
@@ -632,11 +611,9 @@ class CompilationEngine:
                 self.input_file.advance()
             
             elif next_token in ['(', '.']: 
-                # サブルーチン呼び出し
                 self.compileSubroutineCall()
             
             else:
-                # 単純な変数
                 var_name = self.input_file.cur_token
                 self.writeIdentifier(var_name, "used")
                 self.input_file.advance()
@@ -665,7 +642,6 @@ class CompilationEngine:
             self.fp_out.write(f"<keyword> {self.input_file.cur_token} </keyword>\n")
             self.input_file.advance()
         else:
-            # クラス名の型
             self.writeIdentifier(self.input_file.cur_token, "used")
             self.input_file.advance()
 
@@ -737,10 +713,10 @@ class SymbolTable:
     def define(self, name: str, type: str, kind) -> None:
         if kind not in self.counters:
             self.counters[kind] = 0
-        else:
-            self.counters[kind] += 1
 
         index = self.counters[kind]
+        self.counters[kind] += 1
+
         self.table[name] = SymbolElement(name, type, kind, index)
         
     def varCount(self, kind) -> int:
@@ -757,6 +733,7 @@ class SymbolTable:
             return self.table[name].type
         else:
             return None
+        
     def indexOf(self, name) -> int:
         if name in self.table:
             return self.table[name].index
@@ -768,56 +745,39 @@ class VMWriter:
         self.fp = open(output_path, "w")
 
     def writePush(self, segment, index):
-        vm_code = f"""
-            push {segment} {index}
-            """
+        vm_code = f"""push {segment} {index}\n"""
         self.fp.write(vm_code)
 
     def writePop(self, segment, index):
-        vm_code = f"""
-            pop {segment} {index}"""
+        vm_code = f"""pop {segment} {index}\n"""
         self.fp.write(vm_code)
 
     def writeArithmetic(self, command):
-        vm_code = f"""
-            {command}
-            """
+        vm_code = f"""{command}\n"""
         self.fp.write(vm_code)
 
     def writeLabel(self, label):
-        vm_code = f"""
-            label {label}
-            """
+        vm_code = f"""label {label}\n"""
         self.fp.write(vm_code)
     
     def writeGoto(self, label):
-        vm_code = f"""
-            goto {label}
-            """
+        vm_code = f"""goto {label}\n"""
         self.fp.write(vm_code)
 
     def writeIf(self, label):
-        vm_code = f"""
-            if-goto {label}
-            """
+        vm_code = f"""if-goto {label}\n"""
         self.fp.write(vm_code)
 
     def writeCall(self, name, nArgs):
-        vm_code = f"""
-            call {name} {nArgs}
-            """
+        vm_code = f"""call {name} {nArgs}\n"""
         self.fp.write(vm_code)
 
     def writeFunction(self, name, nVars):
-        vm_code = f"""
-            function {name} {nVars}
-            """
+        vm_code = f"""function {name} {nVars}\n"""
         self.fp.write(vm_code)
     
     def writeReturn(self):
-        vm_code = """
-            return
-            """
+        vm_code = """return\n"""
         self.fp.write(vm_code)
 
     def close(self):
