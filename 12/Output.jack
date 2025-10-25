@@ -19,8 +19,27 @@ class Output {
     // Character map for displaying characters
     static Array charMaps; 
 
+    static int line, column;
+    static Array powerOfTwo;
+
     /** Initializes the screen, and locates the cursor at the screen's top-left. */
     function void init() {
+        var int i;
+
+        let powerOfTwo = Array.new(8);
+        let powerOfTwo[0] = 1;
+        let i = 1;
+        while(i < 8) {
+            let powerOfTwo[i] = powerOfTwo[i - 1] + powerOfTwo[i - 1];
+            let i = i + 1;
+        }
+
+        do Output.initMap();
+
+        let line = 0;
+        let column = 0;
+
+        return;
     }
 
     // Initializes the character map array
@@ -176,28 +195,88 @@ class Output {
     /** Moves the cursor to the j-th column of the i-th row,
      *  and erases the character displayed there. */
     function void moveCursor(int i, int j) {
+        if ((i < 0) | (j < 0)) {
+            do Sys.error(20);
+        }
+
+        let line = i;
+        let column = j;
+        if (column > 63) {
+            let column = 0;
+            let line = line + 1;
+        }
+        if (line > 22) {
+            let line = 0;
+        }
+        do Output.displayChar(32);
+        return;
     }
 
     /** Displays the given character at the cursor location,
      *  and advances the cursor one column forward. */
     function void printChar(char c) {
+        do Output.displayChar(c);
+        do Output.moveCursor(line, column + 1);
+        return;
     }
 
     /** displays the given string starting at the cursor location,
      *  and advances the cursor appropriately. */
     function void printString(String s) {
+        var int i;
+        let i = 0;
+        while (i < s.length()) {
+            do Output.printChar(s.charAt(i));
+            let i = i + 1;
+        }
+        return;
     }
 
     /** Displays the given integer starting at the cursor location,
      *  and advances the cursor appropriately. */
     function void printInt(int i) {
+        var String s;
+        let s = String.new(6);
+        do s.setInt(i);
+        do Output.printString(s);
+        return;
     }
 
     /** Advances the cursor to the beginning of the next line. */
     function void println() {
+        do Output.moveCursor(line + 1, 0);
+        return;
     }
 
     /** Moves the cursor one column back. */
     function void backSpace() {
+        do Output.moveCursor(line, column - 1);
+        return;
+    }
+
+    function void displayChar(char c) {
+        var Array map;
+        var int x, y, baseX, baseY;
+
+        let map = Output.getMap(c);
+        let baseX = column * 8;
+        let baseY = line * 11;
+
+        let y = 0;
+        while (y < 11) {
+            let x = 0;
+            while (x < 8) {
+                if (map[y] & powersOfTwo[x]) {
+                    do Screen.setColor(true);
+                } else {
+                    do Screen.setColor(false);
+                }
+                do Screen.drawPixel(baseX + x, baseY + y);
+                let x = x + 1;
+            }
+            let y = y + 1;
+        }
+
+        return;
     }
 }
