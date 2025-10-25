@@ -1,0 +1,105 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+// File name: projects/12/Math.jack
+
+/**
+ * A library of commonly used mathematical functions.
+ * Note: Jack compilers implement multiplication and division using OS method calls.
+ */
+class Math {
+
+    /** Initializes the library. */
+    function void init() {
+
+    }
+
+    /** Returns the absolute value of x. */
+    function int abs(int x) {
+        if (x < 0) {
+            return -x; 
+        }
+        return x;
+    }
+
+    /** Returns the product of x and y. 
+     *  When a Jack compiler detects the multiplication operator '*' in the 
+     *  program's code, it handles it by invoking this method. In other words,
+     *  the Jack expressions x*y and multiply(x,y) return the same value.
+     */
+    function int multiply(int x, int y) {
+        var int sum, shiftedx, i;
+        var bool isneg;
+        let sum = 0;
+        let shiftedx = x;
+
+        let isneg = ((x>0) & (y<0) | (x<0) & (y>0));
+        let x = Math.abs(x);
+        let y = Math.abs(y);
+        
+        let i = 0;
+        while (i < n) {
+            if (y[i] & 0) {
+                sum = sum  + shiftedx;
+            }
+            shiftedx = 2 * shiftedx;
+            i = i + 1;
+        }
+        if (isneg) {
+            return -sum;
+        }
+        return sum;
+    }
+
+    /** Returns the integer part of x/y.
+     *  When a Jack compiler detects the multiplication operator '/' in the 
+     *  program's code, it handles it by invoking this method. In other words,
+     *  the Jack expressions x/y and divide(x,y) return the same value.
+     */
+    function int divide(int x, int y) {
+        var int q, tmp;
+        var bool isneg;
+
+        let isneg = ((x>0) & (y<0) | (x<0) & (y>0));
+        let x = Math.abs(x);
+        let y = Math.abs(y);
+
+        if (y > x) {
+            return 0;
+        }
+        let q = divide(x, 2 * y);
+        let tmp = 2 * q * y;
+        if ((x-tmp) < y) {
+            if (isneg) {
+                return -2*q;
+            }
+            return 2 * q;
+        }
+        if (isneg) {
+            return -(2*q+1);
+        }
+        return 2 * q + 1;
+    }
+
+    /** Returns the integer part of the square root of x. */
+    function int sqrt(int x) {
+        var int y, i, tmp;
+        let y = 0;
+
+        if (x < 0) {
+            do Sys.error(4);
+        }
+        let i = 7;
+        while (i > 0) {
+            if ((y+Math.))
+        }
+    }
+
+    /** Returns the greater number. */
+    function int max(int a, int b) {
+    }
+
+    /** Returns the smaller number. */
+    function int min(int a, int b) {
+    }
+}
